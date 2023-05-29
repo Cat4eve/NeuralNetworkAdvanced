@@ -1,9 +1,10 @@
 import numpy as np
 
 class DenseLayer:
-    def __init__(self, input_size, output_size, activation='sigmoid'):
+    def __init__(self, input_size, output_size, activation=None):
         self.weights = np.random.randn(input_size, output_size) * 0.01
         self.biases = np.zeros(output_size)
+        self.activation = activation
     
     def forward(self, inputs):
         self.inputs = inputs
