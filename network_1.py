@@ -3,8 +3,8 @@ import numpy as np
 class DenseLayer:
     def __init__(self, input_size, output_size, activation=None):
         self.weights = np.random.randn(input_size, output_size) * 0.01
-        self.biases = np.zeros(output_size)
-        self.activation = activation
+        self.biases  = np.zeros(output_size)
+        self.activation : str = activation
     
     def forward(self, inputs):
         self.inputs = inputs
@@ -24,7 +24,7 @@ class DenseLayer:
     
 class DenseNetwork:
     def __init__(self):
-        self.layers = []
+        self.layers : list[DenseLayer] = []
     
     def add_layer(self, layer):
         self.layers.append(layer)
