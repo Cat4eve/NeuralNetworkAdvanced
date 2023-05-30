@@ -26,13 +26,12 @@ learning_rate = 0.001
 num_epochs = 1000
 
 nn = DenseNetwork(num_epoches=num_epochs, alpha=learning_rate)
-nn.add_layer(DenseLayer(10,3, activation='sigmoid'))
-nn.add_layer(DenseLayer(3,1, activation='sigmoid'))
+nn.add_layer(DenseLayer(10,1,activation='sigmoid'))
 nn.call(X = X_train, y = y_train)
 
 
 # print("Accuracy (DenseNetwork implemented from scratch):", r2_score(y_test, nn.call(X = X_test, training=False))) # regression
 
-print("Accuracy (DenseNetwork implemented from scratch):", accuracy_score(y_test, [0 if i < 0.5 else 1 for i in nn.call(X = X_test, training=False)])) # classification
+# print("Accuracy (DenseNetwork implemented from scratch):", accuracy_score(y_test, [0 if i < 0.5 else 1 for i in nn.call(X = X_test, training=False)])) # classification
 
 

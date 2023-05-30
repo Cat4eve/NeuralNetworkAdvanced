@@ -9,6 +9,11 @@ class DenseLayer:
     def forward(self, inputs):
         self.inputs = inputs
         self.output = np.dot(inputs, self.weights) + self.biases
+        match self.activation:
+            case 'relu':
+                if self.output < 0: self.output = 0
+            case 'sigmoid':
+                self.output = 1/(1+np.exp(-self.output))
         
         return self.output
     
