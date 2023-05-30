@@ -22,9 +22,8 @@ class DenseLayer:
             case 'relu':
                 if grad_input < 0: grad_input = 0
             case 'sigmoid':
-                grad_input = 1/(1+np.exp(-grad_input))*(1-(1/(1+np.exp(-grad_input))))
-
-
+                e_x = 1/(1+np.exp(-grad_input))
+                grad_input = e_x*(1-e_x)
 
         self.weights -= learning_rate * grad_weights
         self.biases -= learning_rate * grad_biases
