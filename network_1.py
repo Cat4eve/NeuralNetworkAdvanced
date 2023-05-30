@@ -17,6 +17,15 @@ class DenseLayer:
         grad_biases = np.sum(grad_output, axis=0)
         
         grad_input = np.dot(grad_output, self.weights.T)
+        
+        match self.activation:
+            case 'relu':
+                if grad_input < 0: grad_input = 0
+            case 'sigmoid':
+                grad_input = 1/(1+np.exp(-grad_input))*(1-(1/(1+np.exp(-grad_input))))
+
+
+
         self.weights -= learning_rate * grad_weights
         self.biases -= learning_rate * grad_biases
         
