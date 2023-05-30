@@ -23,7 +23,10 @@ class DenseLayer:
         return grad_input
     
 class DenseNetwork:
-    def __init__(self):
+    def __init__(self, num_epoches=1000, alpha=0.001, betta_1=.9, betta_2=.97):
+        self.num_epoches = num_epoches
+        self.alpha = alpha
+        self.bettas = np.array([betta_1, betta_2])
         self.layers : list[DenseLayer] = []
     
     def add_layer(self, layer):
@@ -34,6 +37,17 @@ class DenseNetwork:
             inputs = layer.forward(inputs)
         return inputs
     
-    def backward(self, grad_output, learning_rate):
+    def backward(self, grad_output):
         for layer in reversed(self.layers):
-            grad_output = layer.backward(grad_output, learning_rate)
+            grad_output = layer.backward(grad_output, self.alpha)
+    
+    def call(self, X, y=None, training=True):
+        if not training: return self.forward(X)
+
+        for _ in range(self.num_epoches):
+            pred = self.forward(X)
+            gradient = 2  / len(X) * (pred - y) # with respect to the loss=sum((pred-y)^2)
+            self.backward(gradient)
+
+        return self.call(X, y, False)
+
