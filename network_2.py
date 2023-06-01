@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-class NeuralLayer(tf.keras.Model):
+class NeuralLayer(tf.Module):
     def __init__(self, input_size, output_size, activation=None):
         super().__init__()
 
@@ -9,15 +9,15 @@ class NeuralLayer(tf.keras.Model):
         self.activation = activation
 
         self.w = tf.Variable(
-            initial_value=tf.random_normal_initializer()(
+            initial_value=tf.random.normal(
                 shape=(self.input_size, self.output_size),
-                dtype="float32"
+                dtype=tf.float64
             ),
             trainable=True,
         )
 
         self.b = tf.Variable(
-            initial_value=tf.zeros(output_size),
+            initial_value=tf.zeros(output_size, dtype=tf.float64),
             trainable=True
         )
 
@@ -25,21 +25,20 @@ class NeuralLayer(tf.keras.Model):
         self.inputs = inputs
         self.output = tf.matmul(inputs, self.w) + self.b
         
-        match self.activation:
-            case 'relu':
-                if self.output < 0: self.output = 0
-            case 'sigmoid':
-                self.output = 1/(1+tf.exp(-self.output))
+        if self.activation == 'relu':
+            self.output = tf.nn.relu(self.output)
+        elif self.activation == 'sigmoid':
+            self.output = tf.sigmoid(self.output)
         
         return self.output
 
 
-
-class NeuralNetwork:
+class NeuralNetwork(tf.Module):
     def __init__(self, num_epoch, alpha=0.001):
+        super().__init__()
         self.num_epoch = num_epoch
         self.alpha = alpha
-        self.layers : list[NeuralLayer] = []
+        self.layers = []
 
     def add_layers(self, layer):
         self.layers.append(layer)
@@ -50,17 +49,47 @@ class NeuralNetwork:
         return inputs
 
     def __call__(self, X, y=None, training=True):
-        # super().__call__()
-    
-        if not training: pass
+        if not training:
+            return self.forward(X)
 
         for _ in range(self.num_epoch):
             with tf.GradientTape(persistent=True) as tape:
                 loss = self.forward(X)
-            gradients = tape.gradient(loss, [tf.transpose(i.w) for i in self.layers])
+            
+            variables = [layer.w for layer in self.layers]
+            gradients = tape.gradient(loss, variables)
 
             del tape
-
+        
         return self.__call__(X, y, False)
-    
 
+
+# test
+from sklearn.datasets import make_regression, make_classification
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score, accuracy_score
+
+X, y = make_classification(n_samples=100, n_features=10, random_state=42)
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+y_train = y_train.reshape(-1,1)
+y_test = y_test.reshape(-1,1)
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+X_train = tf.cast(X_train, dtype=tf.float64)
+X_test = tf.cast(X_test, dtype=tf.float64)
+y_train = tf.cast(y_train, dtype=tf.float64)
+
+neural_network = NeuralNetwork(num_epoch=100, alpha=0.001)
+neural_network.add_layers(NeuralLayer(input_size=10, output_size=10, activation='relu'))
+neural_network.add_layers(NeuralLayer(input_size=10, output_size=1, activation='relu'))
+neural_network(X_train, y_train)
+predictions = neural_network(X_test, training=False)
+
+binary_predictions = tf.where(predictions >= 0.5, 1, 0)
+accuracy = tf.reduce_mean(tf.cast(tf.equal(binary_predictions, y_test), tf.float64))
+print("Accuracy:", accuracy.numpy())
