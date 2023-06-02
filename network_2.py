@@ -1,74 +1,65 @@
 import tensorflow as tf
+import numpy as np
 
-class NeuralLayer(tf.Module):
+class DenseLayer:
     def __init__(self, input_size, output_size, activation=None):
-        super().__init__()
-
-        self.input_size = input_size
-        self.output_size = output_size
+        self.weights = tf.Variable(tf.random.normal([input_size, output_size], stddev=0.01, dtype=tf.double))
+        self.biases = tf.Variable(tf.zeros([output_size], dtype=tf.double))
         self.activation = activation
-
-        self.w = tf.Variable(
-            initial_value=tf.random.normal(
-                shape=(self.input_size, self.output_size),
-                dtype=tf.float64
-            ),
-            trainable=True,
-        )
-
-        self.b = tf.Variable(
-            initial_value=tf.zeros(output_size, dtype=tf.float64),
-            trainable=True
-        )
-
+    
     def forward(self, inputs):
         self.inputs = inputs
-        self.output = tf.matmul(inputs, self.w) + self.b
+        self.output = tf.matmul(inputs, self.weights) + self.biases
         
         if self.activation == 'relu':
             self.output = tf.nn.relu(self.output)
         elif self.activation == 'sigmoid':
-            self.output = tf.sigmoid(self.output)
+            self.output = tf.nn.sigmoid(self.output)
         
         return self.output
 
-
-class NeuralNetwork(tf.Module):
-    def __init__(self, num_epoch, alpha=0.001):
-        super().__init__()
-        self.num_epoch = num_epoch
+class DenseNetwork:
+    def __init__(self, num_epochs=1000, alpha=0.001, beta_1=0.9, beta_2=0.97):
+        self.num_epochs = num_epochs
         self.alpha = alpha
+        self.betas = np.array([beta_1, beta_2])
         self.layers = []
-
-    def add_layers(self, layer):
+    
+    def add_layer(self, layer):
         self.layers.append(layer)
-
+    
     def forward(self, inputs):
         for layer in self.layers:
             inputs = layer.forward(inputs)
         return inputs
-
-    def __call__(self, X, y=None, training=True):
+    
+    def trainable_variables(self):
+        variables = []
+        for layer in self.layers:
+            variables.extend([layer.weights, layer.biases])
+        return variables
+    
+    def call(self, X, y=None, training=True):
         if not training:
             return self.forward(X)
 
-        for _ in range(self.num_epoch):
-            with tf.GradientTape(persistent=True) as tape:
-                loss = self.forward(X)
-            
-            variables = [layer.w for layer in self.layers]
-            gradients = tape.gradient(loss, variables)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=self.alpha, beta_1=self.betas[0], beta_2=self.betas[1])
 
-            del tape
-        
-        return self.__call__(X, y, False)
+        for _ in range(self.num_epochs):
+            with tf.GradientTape() as tape:
+                pred = self.forward(X)
+                loss = tf.reduce_mean(tf.square(pred - y))
 
+            gradients = tape.gradient(loss, self.trainable_variables())
+            optimizer.apply_gradients(zip(gradients, self.trainable_variables()))
+
+        return self.call(X, y, False)
 
 # test
-from sklearn.datasets import make_regression, make_classification
+from sklearn.datasets import make_classification
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import r2_score, accuracy_score
+from sklearn.metrics import accuracy_score
 
 X, y = make_classification(n_samples=100, n_features=10, random_state=42)
 
@@ -80,16 +71,8 @@ scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
 
-X_train = tf.cast(X_train, dtype=tf.float64)
-X_test = tf.cast(X_test, dtype=tf.float64)
-y_train = tf.cast(y_train, dtype=tf.float64)
+nn = DenseNetwork(num_epochs=300)
+nn.add_layer(DenseLayer(10,1,activation='sigmoid'))
+nn.call(X = X_train, y = y_train)
 
-neural_network = NeuralNetwork(num_epoch=100, alpha=0.001)
-neural_network.add_layers(NeuralLayer(input_size=10, output_size=10, activation='relu'))
-neural_network.add_layers(NeuralLayer(input_size=10, output_size=1, activation='relu'))
-neural_network(X_train, y_train)
-predictions = neural_network(X_test, training=False)
-
-binary_predictions = tf.where(predictions >= 0.5, 1, 0)
-accuracy = tf.reduce_mean(tf.cast(tf.equal(binary_predictions, y_test), tf.float64))
-print("Accuracy:", accuracy.numpy())
+print("Accuracy (DenseNetwork implemented from scratch):", accuracy_score(y_test, [0 if i < 0.5 else 1 for i in nn.call(X = X_test, training=False)]))
